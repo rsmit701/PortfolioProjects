@@ -8,7 +8,7 @@ from PortfolioProject..CovidVaccinations
 where continent is not null
 order by 3,4
 
-Select Location, date, total_cases, new_cases, total_deaths, population 
+Select Location, date, new_cases, total_cases, total_deaths, population 
 from
 PortfolioProject..CovidDeaths
 where continent is not null
@@ -19,16 +19,22 @@ order by 1,2
 
 Select Location, date, total_cases, total_deaths, (total_deaths/total_cases) * 100 as DeathPercentage
 From PortfolioProject..CovidDeaths
-where location = 'Jamaica'
+where location = 'Jamaica' and total_deaths is not null
 order by 1,2
 
 --Looking at Total Cases vs Population
---Shows what percentage of population got covid in Jamaica
+--Shows what percentage of population got covid in Jamaica vs USA
 
 Select Location, date, total_deaths, population, (total_deaths/population) * 100 as CovidMortality
 From PortfolioProject..CovidDeaths
-where location = 'Jamaica'
+where location = 'Jamaica' and total_deaths is not null
 order by 1,2
+
+Select Location, date, total_deaths, population, (total_deaths/population) * 100 as CovidMortality
+From PortfolioProject..CovidDeaths
+where location = 'United States' and total_deaths is not null
+order by 1,2
+
 
 --Looking at when Jamaica had its highest death count
 Select Location, date, MAX(total_deaths) as HighestDeathCount
@@ -212,7 +218,7 @@ order by 5 desc
 
 
 
- --Creating view to store for later visualization
+ --Creating views to store for later visualization
 
 Create View PercentPopulationVaccinated as
 Select d.continent, d.location, d.date, d.population, v.new_vaccinations
@@ -228,3 +234,69 @@ where d.continent is not null
 
 Select * 
 from PercentPopulationVaccinated
+
+
+Create View DeathPercentage as 
+Select location, SUM(new_cases) as total_cases, SUM(cast(new_deaths as int)) as total_deaths, Sum(cast(new_deaths as int))/SUM(new_cases)*100 as DeathPercentage
+from PortfolioProject..CovidDeaths
+where continent is not null
+group by location
+--order by DeathPercentage desc
+
+Select * 
+from DeathPercentage
+order by DeathPercentage desc
+
+
+
+Create View VaccinationProgressionJA as
+Select d.continent, d.location, d.date, d.population, v.new_vaccinations
+, SUM(convert(bigint,v.new_vaccinations)) OVER (Partition by d.location order by d.location, d.date)
+as VaccinationProgression
+from PortfolioProject..CovidDeaths d
+Join PortfolioProject..CovidVaccinations v
+	on d.location = v.location
+	and d.date = v.date
+where d.continent is not null and d.location = 'Jamaica'
+--order by 2,3
+
+
+Select * 
+from VaccinationProgressionJA
+where new_vaccinations is not null
+
+
+Create View VaccinationProgressionUS as
+Select d.continent, d.location, d.date, d.population, v.new_vaccinations
+, SUM(convert(bigint,v.new_vaccinations)) OVER (Partition by d.location order by d.location, d.date)
+as VaccinationProgression
+from PortfolioProject..CovidDeaths d
+Join PortfolioProject..CovidVaccinations v
+	on d.location = v.location
+	and d.date = v.date
+where d.continent is not null and d.location like '%states%'
+--order by 2,3
+
+Select * 
+from VaccinationProgressionUS
+where new_vaccinations is not null
+
+
+Create View CovidMortalityJA as 
+Select Location, date, total_deaths, population, (total_deaths/population) * 100 as CovidMortality
+From PortfolioProject..CovidDeaths
+where location = 'Jamaica' and total_deaths is not null
+--order by 1,2
+
+Select *
+from CovidMortalityJA
+
+Create View CovidMortalityUS as 
+Select Location, date, total_deaths, population, (total_deaths/population) * 100 as CovidMortality
+From PortfolioProject..CovidDeaths
+where location = 'United States' and total_deaths is not null
+--order by 1,2
+
+Select *
+from CovidMortalityUS
+
